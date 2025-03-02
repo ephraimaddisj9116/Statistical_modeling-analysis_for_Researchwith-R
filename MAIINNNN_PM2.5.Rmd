@@ -1,0 +1,541 @@
+---
+title: "Investigating the Impact of Local Meteorological Conditions on Daily Air Pollutant Levels in Houston Using The Generalized Additive Model"
+author: "Joseph Ephraim-Addison"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output: powerpoint_presentation
+subtitle: 
+---
+
+
+                                  ### JUST IGNORE ###
+
+```{r eval=FALSE, message=FALSE, comment="", include=FALSE}
+
+
+data1 <- read.csv("C:/Users/Ephra/OneDrive/Documents/New folder/PM2.5/ad_viz_plotval_data.csv")
+
+data2 <- read.csv("C:/Users/Ephra/OneDrive/Documents/New folder/PM2.5/ad_viz_plotval_data (1).csv")
+
+data3 <- read.csv("C:/Users/Ephra/OneDrive/Documents/New folder/PM2.5/ad_viz_plotval_data (2).csv")
+
+data4 <- read.csv("C:/Users/Ephra/OneDrive/Documents/New folder/PM2.5/ad_viz_plotval_data (3).csv")
+
+data5 <- read.csv("C:/Users/Ephra/OneDrive/Documents/New folder/PM2.5/ad_viz_plotval_data (4).csv")
+
+data6 <- read.csv("C:/Users/Ephra/OneDrive/Documents/New folder/PM2.5/ad_viz_plotval_data (5).csv")
+
+data7 <- read.csv("C:/Users/Ephra/OneDrive/Documents/New folder/PM2.5/ad_viz_plotval_data (6).csv")
+
+data8 <- read.csv("C:/Users/Ephra/OneDrive/Documents/New folder/PM2.5/ad_viz_plotval_data (7).csv")
+
+data9 <- read.csv("C:/Users/Ephra/OneDrive/Documents/New folder/PM2.5/ad_viz_plotval_data (8).csv")
+
+data10 <- read.csv("C:/Users/Ephra/OneDrive/Documents/New folder/PM2.5/ad_viz_plotval_data (9).csv")
+
+data11 <- read.csv("C:/Users/Ephra/OneDrive/Documents/New folder/PM2.5/ad_viz_plotval_data (10).csv")
+
+data13 <- read.csv("C:/Users/Ephra/OneDrive/Documents/New folder/PM2.5/ad_viz_plotval_data (12).csv")
+
+data14 <- read.csv("C:/Users/Ephra/OneDrive/Documents/New folder/PM2.5/ad_viz_plotval_data (13).csv")
+
+data15 <- read.csv("C:/Users/Ephra/OneDrive/Documents/New folder/PM2.5/ad_viz_plotval_data (14).csv")
+
+data16 <- read.csv("C:/Users/Ephra/OneDrive/Documents/New folder/PM2.5/ad_viz_plotval_data (15).csv")
+
+data <- rbind(data1,data2, data3, data4, data5, data6, data7, data8, data9, data10, data11, data13, data14, data15, data16)
+
+dim(data)
+
+#data <- data %>% group_by(Date)
+
+#write_xlsx(data, "data.xlsx")
+
+
+```
+
+                        ### AIR QUALITY DATA ANALYSIS ###
+                        
+```{r message=FALSE, comment="", include=FALSE, results='hold'}
+library(readxl)
+library(writexl)
+library(dplyr)
+library(lubridate)
+library(tidyr)
+
+
+# List of file paths
+file.paths <- list.files(path = "C:/Users/Ephra/OneDrive/Desktop/New folder/PM2.5", pattern = "ad_viz_plotval_data.*\\.csv", full.names = TRUE)
+
+
+# Read and merge all data files
+merged_data <- lapply(file.paths, read.csv) %>%
+  bind_rows()
+
+
+Airdata <- merged_data %>% rename(PM2.5.Level = Daily.Mean.PM2.5.Concentration, Site.Name = Local.Site.Name, Latitude = Site.Latitude, Longitude = Site.Longitude)
+
+str(Airdata)
+
+
+#Airdata %>% View()
+
+
+
+```
+
+
+
+```{r message=FALSE, comment="", include=FALSE, results='hold'}
+
+#unique(Airdata$Date)
+
+Airdata$Year <- year(mdy(Airdata$Date))
+Airdata$Dow <- day(mdy(Airdata$Date))
+Airdata$Month <- month(mdy(Airdata$Date))
+
+
+#write_xlsx(Airdata, "Air.xlsx")
+
+```
+
+
+```{r message=FALSE, comment="", include=FALSE, results='hold'}
+sum(Airdata$Year == 2009)
+
+get_season <- function(Month) {
+  if (Month %in% c(12, 1, 2))  {
+    return("Winter")
+  } else if (Month %in% c(3, 4, 5)) {
+    return("Spring")
+  } else if (Month %in% c(6, 7, 8)) {
+    return("Summer")
+  } else {
+    return("Fall")
+  }
+}
+
+Airdata$Season <- sapply(Airdata$Month, get_season)
+
+  
+str(Airdata)
+
+
+```
+
+
+```{r message=FALSE, comment="", include=FALSE, results='hold'}
+
+Air <- Airdata %>% mutate(Site.ID = as.character(Site.ID)) %>% 
+  select(1, 3, 5, 8, 13, 14, 21, 22, 23, 24, 25, 26 )
+
+
+Air <- Air %>% filter(Site.ID %in% c("481671034", "482010024", "482011034", "482011035", "482011039", "482011050", "483390078", "482011042", "482010416"), Method.Description %in% c("PM2.5 SCC w/Correction Factor"))
+
+
+#colSums(is.na(Air))
+
+#summary(Air$Site.Name == "Baytown")
+
+#length(unique(Air$Site.Name))
+#length(unique(merged_data$Site.ID))
+
+#str(Air)
+
+
+```
+
+```{r message=FALSE, comment="", include=FALSE}
+PM2.5 <- Air %>% filter(Year %in% c(2009, 2010, 2011, 2012)) %>% select(1, 2, 4, 8, 7, 10, 11, 9, 12, 3)
+
+summary(PM2.5$Site.ID == "482010416")
+
+#colnames(PM2.5)
+#dim(PM2.5)
+
+PM2.5 <- PM2.5 %>% arrange(Site.ID, Year)
+
+head(PM2.5)
+
+
+#write_xlsx(PM2.5, "PM2.5.xlsx")
+```
+
+
+```{r message=FALSE, comment="", include=FALSE}
+
+new.dates <- data.frame(Date = seq.Date(from = as.Date("2009-01-01"), to = as.Date("2012-12-31"), by = "day"))
+
+head(new.dates)
+dim(new.dates)
+str(PM2.5)
+
+#rm(PM2.5_data)
+
+PM2.5_data <- PM2.5 %>% mutate(
+  Date = as.Date(Date, format = "%m/%d/%Y"),
+  Site.ID = as.character(Site.ID),
+  Site.Name = as.character(Site.Name),
+  Season = as.character(Season),
+  across(-c(Date, Site.ID, Site.Name, Season), as.numeric)
+)
+
+
+#str(PM2.5_data)
+#head(PM2.5_data)
+
+PM2.5_data <- full_join(new.dates, PM2.5_data, by = "Date")
+
+str(PM2.5_data)
+
+
+
+```
+
+                                    ### REDUNDANT ###
+                                    
+```{r eval=FALSE, message=FALSE, comment="", include=FALSE}
+RR <- read_excel("C:/Users/Ephra/OneDrive/Documents/New folder/PM2.5_edited.xlsx", sheet = "482011034")
+
+RR <- RR %>% mutate(
+  Date = as.Date(Date, format = "%m/%d/%Y"),
+  Site.ID = as.character(Site.ID),
+  Site.Name = as.character(Site.Name),
+  Season = as.character(Season),
+  across(-c(Date, Site.ID, Site.Name, Season), as.numeric)
+)
+
+RR_date <- data.frame(Date = seq.Date(from = as.Date("2009-01-01"), to = as.Date("2012-12-31"), by = "day"))
+
+RR <- full_join(RR_date, RR)
+
+RR <- RR %>% fill(c(2:5, 7:9), .direction = "down") 
+         
+RR$Dow <- day(ymd(RR$Date))
+
+RR <- RR %>% mutate( PM2.5.Level = zoo::na.approx(PM2.5.Level, na.rm = FALSE))
+
+colSums(is.na(RR))
+str(RR)
+
+```
+
+
+                               ### PM2.5 INTERPOLATION ###
+                              
+```{r eval=FALSE, message=FALSE, comment=""}
+process_sheet <- function(sheet_name) {
+  RR <- read_excel("C:/Users/Ephra/OneDrive/Documents/New folder/PM2.5_edited.xlsx", sheet = sheet_name)
+  
+  RR <- RR %>%
+    mutate(
+      Date = as.Date(Date, format = "%m/%d/%Y"),
+      Site.ID = as.character(Site.ID),
+      Site.Name = as.character(Site.Name),
+      Season = as.character(Season),
+      across(-c(Date, Site.ID, Site.Name, Season), as.numeric)
+    )
+  
+  RR_date <- data.frame(Date = seq.Date(from = as.Date("2009-01-01"), to = as.Date("2012-12-31"), by = "day"))
+  
+
+  RR <- full_join(RR_date, RR)
+  
+  RR <- RR %>% fill(c(2:5, 7:9), .direction = "down")
+  
+  RR$Dow <- day(ymd(RR$Date))
+  
+  RR <- RR %>% mutate(PM2.5.Level = zoo::na.approx(PM2.5.Level, na.rm = FALSE))
+  
+  return(RR)
+}
+
+sheets <- c("481671034", "482010024", "482011034", "482011035", "482011039", "482011050", "483390078", "482011042", "482010416")
+
+results <- lapply(sheets, process_sheet)
+
+
+combined_results <- bind_rows(results, .id = "Sheet")
+
+colSums(is.na(combined_results))
+
+summary(combined_results$Site.ID == 482011034)
+
+write_xlsx(combined_results, "results.xlsx")
+
+
+```
+
+
+                             ### PM2.5 AND WEATHER DATA ANALYSIS ###
+                             
+```{r eval=FALSE, message=FALSE, comment=""}
+EE <- combined_results %>% mutate(PM2.5.Level = zoo::na.approx(PM2.5.Level, na.rm = FALSE))
+
+colSums(is.na(EE))
+
+EE <- EE %>% group_by(Site.ID) %>%
+  mutate(Time = row_number()) 
+
+#write_xlsx(EE, "final_results.xlsx")
+
+```
+
+
+                                 ### WEATHER DATA ANALYSIS ###
+
+```{r message=FALSE, comment="", include=FALSE}
+file.paths <- list.files(path = "C:/Users/Ephra/Downloads/", pattern = "Weather_Data.*\\.csv", full.names = TRUE)
+
+
+data.merge <- lapply(file.paths, read.csv) %>%
+  bind_rows()
+
+#str(data.merge)
+dim(data.merge)
+
+
+```
+
+
+```{r eval=FALSE, message=FALSE, comment="", include=FALSE}
+
+weather <- data.merge %>% select(DATE, STATION, HourlyAltimeterSetting, HourlyRelativeHumidity, HourlyVisibility, HourlyWindDirection, HourlyDewPointTemperature, HourlyPrecipitation, HourlyStationPressure, HourlyWetBulbTemperature, HourlyWindSpeed, HourlyDryBulbTemperature)
+
+
+Weather <- weather %>% rename(
+  Date = DATE, Station = STATION, 
+  Alt.meter = HourlyAltimeterSetting, 
+  RH = HourlyRelativeHumidity, 
+  Visibility = HourlyVisibility, 
+  WD = HourlyWindDirection, 
+  Dew.Temp = HourlyDewPointTemperature, 
+  Precip = HourlyPrecipitation, 
+  Pressure = HourlyStationPressure, 
+  Wet.Temp = HourlyWetBulbTemperature,
+  WS = HourlyWindSpeed,
+  Dry.Temp = HourlyDryBulbTemperature)
+
+dim(Weather)
+names(Weather)
+
+#str(Weather)
+
+colSums(is.na(Weather))
+
+```
+
+
+```{r eval=FALSE, message=FALSE, warning=FALSE, comment="", include=FALSE}
+Weather <- Weather %>% mutate(
+  Date = as.Date(Date),
+  Station = as.character(Station),
+  across(-c(Date, Station), as.numeric)
+)
+
+#Weather$Date <- as.Date(Weather$Date)
+#Weather$Station <- as.character(Weather$Station)
+#str(Weather)
+
+Weather <- Weather %>% arrange(Date)
+  
+#write_xlsx(Weather, "weather2.xlsx")
+```
+
+
+
+               ### GETTING THE MEAN AVERAGES FOR THE DATA ###
+
+```{r eval=FALSE, message=FALSE, comment="", include=FALSE}
+
+weather.new <- Weather %>% group_by(Date) %>%
+  summarise(Alt.meter = mean(Alt.meter),
+            RH = mean(RH),
+            Visibility = mean(Visibility),
+            WD = mean(WD),
+            Dew.Temp = mean(Dew.Temp),
+            Precip = mean(Precip),
+            Pressure = mean(Pressure),
+            Wet.Temp = mean(Wet.Temp),
+            WS = mean(WS),
+            Dry.Temp = mean(Dry.Temp)
+            
+          )
+
+#dim(weather.new)
+#str(weather.new)
+write_xlsx(weather.new, "WEATHER11.xlsx")
+
+weather.new$Station <- rep("72059400188")
+#str(weather.new)
+#dim(weather.new)
+#View(weather.new)
+weather.new$Station <- as.character(weather.new$Station)
+
+
+Weather <- weather.new %>% select(Date, Station, Alt.meter, RH, Visibility, WD, Dew.Temp, Precip, Pressure, Wet.Temp, WS, Dry.Temp)
+
+Weather$Year <- year(ymd(Weather$Date))
+
+#str(Weather)
+
+
+```
+
+                        ### WORKING PRECIPITATION ###
+                        
+```{r eval=FALSE, message=FALSE, comment=""}
+data <- read_excel("C:/Users/Ephra/OneDrive/Documents/New folder/weather2.xlsx", sheet = "Sheet2")
+
+dim(data)
+
+data11 <- data %>% select(1, 8) %>%
+            group_by(Date) %>% summarize(Precip = mean(Precip))
+
+dim(data11)
+
+
+data12 <- data %>% select(1, 2, 4, 5, 6, 7, 9, 10, 11, 12)
+
+data13 <- left_join(data12, data11, by = "Date")
+
+dim(data13)
+
+write_xlsx(data13, "datawwwqq.xlsx")
+
+
+
+
+
+#sum(complete.cases(data13))
+
+
+```
+
+
+```{r message=FALSE, comment=""}
+data.weather <- read_excel("C:/Users/Ephra/OneDrive/Documents/New folder/Weather.new.xlsx")
+
+Weather <- data.weather %>% mutate(
+  Date = as.Date(Date),
+  Station = as.character(Station),
+  across(-c(Date, Station), as.numeric)
+) %>% filter(Date >= as.Date("2009-01-01") & Date <= as.Date("2012-12-31"))
+
+str(Weather)
+
+#head(data.weather)
+colSums(is.na(data.weather))
+
+
+
+
+```
+
+                            ### WEATHER DATA INTERPLOATION ###
+                            
+```{r message=FALSE, comment=""}
+library(zoo)
+
+New.weather <- Weather %>% mutate( across(-c(Date, Station), ~ na.approx(., na.rm = FALSE)))
+
+#write_xlsx(New.weather, "weather.now.xlsx")
+
+colSums(is.na(New.weather))
+
+```
+
+```{r eval=FALSE, message=FALSE, comment="", include=FALSE}
+ERR <- full_join(EE, New.weather)
+
+final_data <- ERR %>%
+  rename(Temp = Dry.Temp, Pressure = Alt.meter) %>%
+  select(-c(18))
+
+
+write_xlsx(final_data, "Final_data.xlsx")
+```
+
+                                  
+                                  ### THE GAM ###
+                                  
+```{r eval=FALSE, message=FALSE, comment="", include=FALSE}
+KK <- length(unique(final_data$Year))
+CC <- length(unique(final_data$Time))
+BB <- length(unique(final_data$Season))
+AA <- length(unique(final_data$Dow))
+
+names(final_data)
+str(final_data)
+
+base.mod <- mgcv::gam(log(PM2.5.Level) ~ s(Time) + s(Dow, k = min(BB, 10)) + s(Year, k = min(KK, 10)) + s(Temp) + s(Precip), data = final_data, method = "REML")
+
+base <- mgcv::gam(log(PM2.5.Level) ~ s(Time) + (Precip) + s(Temp) + s(RH) + s(WS) + s(WD) + s(Pressure) + s(Visibility)+ s(Dow, k = min(BB, 10)) + s(Year, k = min(KK, 10)), data = final, method = "REML")
+
+summary(base)
+
+AIC(base)
+BIC(base.mod)
+rmse.gam <- sqrt(mean((exp(fitted(base)) - final$PM2.5.Level)^2))
+rmse.gam
+anova(base)
+
+plot(base.mod, resid = TRUE)
+
+```
+
+
+                      ### FOR TABLE GENERATION IN PPT ###
+                      
+```{r eval=FALSE, fig.height=7, fig.width=10, message=FALSE, comment="", include=FALSE}
+library(knitr)
+#names(Air)
+sample_Air <- Air %>% sample_n(7)
+sample_Air_Main <- sample_Air %>% select(Date, PM2.5.Level, Site.Name, Longitude, Latitude, Method.Description, Season)
+
+#dim(sample_Air_Main)
+#str(sample_Air_Main)
+kable(sample_Air_Main, caption = "Table 1.1: Sample Air Quality Data")
+
+
+```
+
+```{r echo=FALSE, fig.height=7, fig.width=10, message=FALSE, comment=""}
+library(knitr)
+library(dplyr)
+names(New.weather)
+sample_Wea <- New.weather %>% sample_n(7)
+sample_Wea_Main <- sample_Wea %>% select(Date, Station, Alt.meter, RH, Visibility, WD, Precip, WS, Dry.Temp)
+
+BB <- round(sample_Wea_Main[, -c(1, 2)], 2)
+WWW <- cbind(Date = sample_Wea_Main$Date, Station = sample_Wea_Main$Station, BB)
+
+#dim(sample_Air_Main)
+#str(sample_Air_Main)
+kable(WWW, caption = "Table 1.1: Sample Weather Data")
+
+
+```
+
+
+
+
+                        ### SUMMARY STATISTICS FOR ALL VARIABLES ###
+```{r eval=FALSE, message=FALSE, comment="", include=FALSE}
+
+summary_stats <- final %>%
+  summarise(across(c(PM2.5.Level, RH, Temp, Visibility, Pressure, Precip, WS, WD, Time), list(
+        Median = median,
+    Mean = mean,
+    SD = sd,
+    Min = min,
+    Max = max
+  ))) %>%
+  pivot_longer(everything(), names_sep = '_', names_to = c('Variable', '.value'))
+
+summary <- data.frame(summary_stats[, 1], round(summary_stats[-c(1)], 2)) 
+str(summary_stats)
+View(summary)
+
+#kable(summary, caption = "Summary statistics for the variables used for model development")
+pander::pander(summary)
+

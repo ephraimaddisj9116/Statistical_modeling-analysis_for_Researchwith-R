@@ -1,0 +1,301 @@
+---
+title: "Ozone"
+author: "Joseph Ephraim-Addison"
+date: "`r Sys.Date()`"
+output: word_document
+---
+
+```{r echo=FALSE, comment="", message=FALSE}
+library(readxl)
+library(writexl)
+library(dplyr)
+library(lubridate)
+library(tidyr)
+
+
+```
+
+
+### CHUNCK ONE: 
+### 
+```{r 1, echo=FALSE, message=FALSE, comment=""}
+file.paths <- list.files(path = "C:/Users/Ephra/OneDrive/Desktop/New folder/OZONE", pattern = "ad_viz_plotval_data.*\\.csv", full.names = TRUE)
+
+merged_data <- lapply(file.paths, read.csv) %>%
+  bind_rows()
+
+#str(merged_data)
+
+
+Oz_data <- merged_data %>% rename(Ozone.Level = Daily.Max.8.hour.Ozone.Concentration, Site.Name = Local.Site.Name, Latitude = Site.Latitude, Longitude = Site.Longitude)
+
+
+#str(Oz_data)
+
+length(unique(Oz_data$Site.ID))
+
+#Oz.data %>% View()
+#names(Oz.data)
+
+```
+
+
+```{r 2, echo=FALSE, message=FALSE, comment=""}
+Oz.data <- Oz_data %>% filter(!(Site.ID %in% c(482011017))) %>% select(1, 3, 8, 5, 20, 21)
+
+#str(Oz.data)
+#Oz.data %>% View()
+
+#length(unique(Oz.data$Site.ID))
+
+Oz.data$Year <- year(mdy(Oz.data$Date))
+Oz.data$Dow <- day(mdy(Oz.data$Date))
+Oz.data$Month <- month(mdy(Oz.data$Date))
+
+sum(Oz.data$Year == 2009)
+sum(Oz.data$Year == 2010)
+sum(Oz.data$Year == 2011)
+sum(Oz.data$Year == 2012)
+
+get_season <- function(Month) {
+  if (Month %in% c(12, 1, 2))  {
+    return("Winter")
+  } else if (Month %in% c(3, 4, 5)) {
+    return("Spring")
+  } else if (Month %in% c(6, 7, 8)) {
+    return("Summer")
+  } else {
+    return("Fall")
+  }
+}
+
+Oz.data$Season <- sapply(Oz.data$Month, get_season)
+
+str(Oz.data)
+
+
+
+
+
+
+```
+
+
+```{r 3, echo=FALSE, comment="", message=FALSE}
+count <- function(Oz.data, group_columns) {
+  Oz.data %>%
+    group_by(across(all_of(group_columns))) %>%
+    summarise(Count = n(), .groups = 'drop') %>%
+    arrange(desc(Count))
+}
+
+counted <- count(Oz.data, c("Site.ID", "Site.Name"))
+
+#View(counted)
+
+#write_xlsx(counted, "Grouped Sites_Ozone.xlsx")
+
+```
+
+
+
+
+```{r 4, echo=FALSE, comment="", message=FALSE}
+#Oz.data$Date <- ymd(Oz.data$Date)
+
+Oz.data <- Oz.data %>% mutate(
+    Date = as.Date(Date, format = "%m/%d/%Y"),
+    Site.ID = as.character(Site.ID)
+  ) %>% arrange(Site.ID, Year, Site.Name)
+
+
+Oz.data <- Oz.data %>% filter(!Site.ID %in% c("482010070", "482011015", "481671034")) %>% 
+  arrange(Site.Name)%>% 
+  mutate(sheet = dense_rank(Site.Name)) %>% 
+   select(11, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10) 
+
+#str(Oz.data)
+#Oz.data %>% View()
+
+#unique(Oz.data$sheet)
+
+#colSums(is.na(Oz.data))
+
+#write_xlsx(Oz.data, "OZ.xlsx")
+#dup <- Oz.data[duplicated(Oz.data$Date), ]
+#print(dup)
+
+```
+
+
+
+
+```{r 5, echo=FALSE, comment="", message=FALSE}
+full.date <- data.frame(Date = seq.Date(from = as.Date("2009-01-01"), to = as.Date("2012-12-31"), by = "day"))
+
+site_dates <- function(site_id) {
+  full.date %>% mutate(Site.ID = site_id)
+  
+}
+  
+Ozone.data <- bind_rows(lapply(unique(Oz.data$Site.ID), site_dates))
+
+Ozone.data <- full_join(Ozone.data, Oz.data, by = c("Date", "Site.ID"))
+
+#Ozone.data <- Ozone.data %>% fill(everything(-c(Ozone.Level)), .direction = "downup")
+Ozone <- Ozone.data %>% fill(c(3:4, 6:11), .direction = "down") %>% select(3, 5, 1, 2, 4, 6, 7, 8, 9, 10, 11)%>% mutate(Ozone.Level = zoo::na.approx(Ozone.Level, na.rm = FALSE)) %>% ungroup()
+
+
+colSums(is.na(Ozone))
+
+#str(Ozone.data)
+#Ozone.data %>% View()
+
+
+#Oz.data_interpolated <- Ozone.data %>% mutate(Ozone.Level = zoo::na.approx(Ozone.Level, na.rm = FALSE)) %>% ungroup()
+
+#OZ <- Ozone.data %>% mutate(Ozone.Level = zoo::na.approx(Ozone.Level, na.rm = FALSE))
+
+#colSums(is.na(Oz.data_interpolated))
+
+#write_xlsx(OZ, "Ozone1.xlsx")
+
+#str(OZ)
+#Oz.data_interpolated %>% View()
+
+
+
+#missing_dates <- Ozone.data %>%
+  #filter(is.na(Site.Name))
+
+```
+
+###IGNOR THIS!!! "JUSTING TRYING SOMETHING"
+```{r eval=FALSE, message=FALSE, comment="", include=FALSE}
+full.date1 <- data.frame(Date = seq.Date(from = as.Date("2009-01-01"), to = as.Date("2009-12-31"), by = "day"))
+
+
+data2009 <- read.csv("C:/Users/Ephra/OneDrive/Desktop/New folder/OZONE/ad_viz_plotval_data (1).csv")
+
+GG <- data2009 %>% rename(Ozone.Level = Daily.Max.8.hour.Ozone.Concentration, Site.Name = Local.Site.Name, Latitude = Site.Latitude, Longitude = Site.Longitude) %>% select(1, 3, 8, 5, 20, 21)
+
+GG$Year <- year(mdy(GG$Date))
+GG$Dow <- day(mdy(GG$Date))
+GG$Month <- month(mdy(GG$Date))
+
+
+get_season <- function(Month) {
+  if (Month %in% c(12, 1, 2))  {
+    return("Winter")
+  } else if (Month %in% c(3, 4, 5)) {
+    return("Spring")
+  } else if (Month %in% c(6, 7, 8)) {
+    return("Summer")
+  } else {
+    return("Fall")
+  }
+}
+
+GG$Season <- sapply(GG$Month, get_season)
+
+GG <- GG %>% mutate(
+    Date = as.Date(Date, format = "%m/%d/%Y"),
+    Site.ID = as.character(Site.ID)
+  ) %>% arrange(Site.ID, Year, Site.Name)
+
+HH <- GG %>% filter(!Site.ID %in% c("482010070", "482011015", "481671034", "482011017")) %>% arrange(Site.Name) %>% 
+ mutate(sheet = dense_rank(Site.Name))%>% 
+ select(11, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10) 
+
+
+count <- function(HH, group_columns) {
+  HH %>%
+    group_by(across(all_of(group_columns))) %>%
+    summarise(Count = n(), .groups = 'drop') %>%
+    arrange(desc(Count))
+}
+
+counted <- count(HH, c("Site.ID", "Site.Name"))
+
+site_dates <- function(site_id) {
+  full.date1 %>% mutate(Site.ID = site_id)
+  
+}
+  
+JJ <- bind_rows(lapply(unique(HH$Site.ID), site_dates))
+
+JJ <- full_join(JJ, HH, by = c("Date", "Site.ID"))
+
+JA <- JJ %>% fill(c(3:4, 6:11), .direction = "down") %>% select(3, 5, 1, 2, 4, 6, 7, 8, 9, 10, 11)%>% mutate(Ozone.Level = zoo::na.approx(Ozone.Level, na.rm = FALSE))
+
+colSums(is.na(JA))
+View(JA)
+
+#filtered_data <- JA%>% filter(Ozone.Level = NA)
+
+#View(filtered_data)
+
+```
+
+## PERFORMING MANUAL INTERPOLATION
+
+```{r 6, echo=FALSE, message=FALSE, comment=""}
+
+## TO LOOK FOR THE ROW WITH MISSING NUMBERS
+y1 <- is.na(JA[, "Ozone.Level"])
+y <- JA[y1, ]
+print(y)
+
+## TO CALL OUT THE CELL WITH THE MISSING NUMBER  
+k <- which(is.na(JA[, "Ozone.Level"]))
+m <- JA[, "Ozone.Level"][k]
+print(m)
+
+##print(JA[["Ozone.Level"]])
+
+x <- 6570; x_prv <- 6569; x_nxt <- 6568
+y_prv <- 0.015; y_nxt <- 0.018
+slope <- (x - x_prv)/(x_nxt-x_prv)
+y_val <- y_prv + (y_nxt - y_prv) * slope
+print(y_val)
+
+
+JA[, "Ozone.Level"][k] <- y_val
+
+colSums(is.na(JA))
+
+```
+
+## INTERPOLATING THE MAIN OZONE DATA
+```{r 7, echo=FALSE, comment="", message=FALSE}
+VV <- is.na(Ozone[["Ozone.Level"]])
+KK <- Ozone[VV, ]
+print(KK)
+
+XU <- which(is.na(Ozone[["Ozone.Level"]]))
+XM <- Ozone[["Ozone.Level"]][XU]
+print(XM)
+
+#print(Ozone[["Ozone.Level"]]["NA"])
+
+x <- 26298; x_prv <- 26297; x_nxt <- 26296
+y_prv <- 0.037; y_nxt <- 0.029
+slope <- (x - x_prv)/(x_nxt-x_prv)
+y_val <- y_prv + (y_nxt - y_prv) * slope
+print(y_val)
+
+
+Ozone[, "Ozone.Level"][XU] <- y_val
+
+colSums(is.na(Ozone))
+str(Ozone)
+View(Ozone)
+
+View(New.weather)
+
+Ozone <- full_join(Ozone, New.weather)
+
+write_xlsx(Ozone, "ZZZ.xlsx")
+
+
+```
